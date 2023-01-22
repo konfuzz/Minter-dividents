@@ -16,6 +16,10 @@
       margin-top: 20px;
       width: 100%;
     }
+    label {
+      display: inline-block;
+      margin-top:10px;
+    }
   </style>
 </head>
 <body>
@@ -23,30 +27,32 @@
     <input id="coin" type="text" placeholder="Enter token ticker">
     <input id="dist" type="text" placeholder="Token to distribute">
     <input id="amount" type="text" placeholder="Enter amount to distribute">
-    <button id="search">Do magic</button>
+    <button id="search">Do magic</button><br>
+    <label for="pools">Consider tokens in pools</label><input type="checkbox" name="pools" id="pools">
     <textarea name="exclude" id="exclude" cols="30" rows="5" placeholder="Wallets to exclude (divide by ',')"></textarea>
     <textarea name="result" id="result" cols="30" rows="25"></textarea>
     <p class="length"></p>
   </div>
+
   <script>
-    const apiUrl = 'http://api.chainik.io/v1/';
+    const apiUrl = 'https://api.chainik.io/v1/';
     const search = document.querySelector('#search');
     const result = document.querySelector('#result');
     const length = document.querySelector('.length');    
     
     search.addEventListener('click', async () => {
-      let amount = Number(document.querySelector('#amount').value);
-      let coin = document.querySelector('#coin').value.toUpperCase();
-      let dist = document.querySelector('#dist').value.toUpperCase();
+      const amount = Number(document.querySelector('#amount').value);
+      const coin = document.querySelector('#coin').value.toUpperCase();
+      const distribute = document.querySelector('#dist').value.toUpperCase();
+      const pools = document.querySelector('#pools').checked;
       const exclude = document.querySelector('#exclude').value.replaceAll(/[^a-zA-Z0-9,]/g,'').split(',');
 
-      const api = apiUrl + `coin/${coin}/balances`;
-
       result.value = 'Waiting...'
-      const balances = await fetchBalances(api);
+      const balances = await fetchBalances(coin);
       if (!balances) return;
-      let divs = countDivs(balances, exclude, amount);
-      dist = (dist === 'BIP') ? '0' : await fetchDist(dist);
+      const coinInPools = (pools) ? await fetchPools(coin) : null ;
+      let divs = countDivs(balances, exclude, amount, coinInPools);
+      dist = (distribute === 'BIP') ? '0' : await fetchDist(distribute);
       if (!dist) return;
       result.value = divs.map(item => `${item.address},${item.divs},${dist}`).join('\n');
       length.textContent = `Total: ${divs.length} shareholders`;
@@ -62,7 +68,8 @@
       });
     }
     
-    const fetchBalances = (api) => {
+    const fetchBalances = (coin) => {
+      const api = apiUrl + `coin/${coin}/balances`;
       return fetch(api)
         .then(res => {
           if (res.ok) return res.json();
@@ -75,12 +82,39 @@
         });
     }
 
-    const countDivs = (balances, exclude, amount) => {
-      balances = balances.filter( item => {
+    const fetchPools = (coin) => {
+      const api = apiUrl + `coin/${coin}/pools`;
+      return fetch(api)
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error();
+        })
+        .then(res => res.data)
+        .catch((error) => {
+          result.value = 'Got error! Try to check token ticker';
+          return false;
+        });
+    }
+
+    const countDivs = (balances, exclude, amount, coinInPools) => {
+
+      if (coinInPools) {
+        coinInPools.forEach(itemPools => {
+          let i = balances.findIndex(item => item.address === itemPools.address);
+          if (i >= 0) {
+            balances[i].amount = Number(balances[i].amount) + Number(itemPools.amount);
+          } else {
+            balances.push({amount: itemPools.amount, address: itemPools.address});
+          }
+        });
+      }
+
+      balances = balances.filter(item => {
         return !exclude.includes(item.address);
       });
+
       let sum = balances.reduce((prev, current) => {
-        prev += Number(current.amount / 1000000000000000000);
+        prev += Number(current.amount) / 1000000000000000000;
         return prev;
       }, 0);
       return balances.map( item => {return {'address': item.address, 'divs': Number(item.amount / 1000000000000000000 / sum) * amount}})

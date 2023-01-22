@@ -46,14 +46,21 @@
       const balances = await fetchBalances(api);
       if (!balances) return;
       let divs = countDivs(balances, exclude, amount);
-      dist = await fetch(`https://explorer-api.minter.network/api/v2/coins/symbol/${dist}`).then(res => res.json()).then(res => res.data.id).catch((error) => {
-        result.value = 'Got error! Try to check token for distribution ticker';
-        return false;
-      });
+      dist = (dist === 'BIP') ? '0' : await fetchDist(dist);
       if (!dist) return;
       result.value = divs.map(item => `${item.address},${item.divs},${dist}`).join('\n');
       length.textContent = `Total: ${divs.length} shareholders`;
     })
+
+    const fetchDist = async (dist) => {
+      return fetch(`https://explorer-api.minter.network/api/v2/coins/symbol/${dist}`)
+      .then(res => res.json())
+      .then(res => res.data.id)
+      .catch((error) => {
+        result.value = 'Got error! Try to check token for distribution ticker';
+        return false;
+      });
+    }
     
     const fetchBalances = (api) => {
       return fetch(api)

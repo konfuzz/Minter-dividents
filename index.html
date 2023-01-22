@@ -11,10 +11,10 @@
       margin: 0 auto;
       padding-top: 50px;
     }
-    #result {
+    textarea {
+      display: block;
       margin-top: 20px;
       width: 100%;
-      height: 500px;
     }
   </style>
 </head>
@@ -24,31 +24,33 @@
     <input id="dist" type="text" placeholder="Token to distribute">
     <input id="amount" type="text" placeholder="Enter amount to distribute">
     <button id="search">Do magic</button>
-    <textarea name="result" id="result" cols="30" rows="10" style="display: block;"></textarea>
+    <textarea name="exclude" id="exclude" cols="30" rows="5" placeholder="Wallets to exclude (divide by ',')"></textarea>
+    <textarea name="result" id="result" cols="30" rows="25"></textarea>
     <p class="length"></p>
   </div>
   <script>
     const apiUrl = 'http://api.chainik.io/v1/';
     const search = document.querySelector('#search');
     const result = document.querySelector('#result');
-    const length = document.querySelector('.length');
+    const length = document.querySelector('.length');    
     
     search.addEventListener('click', async () => {
       let amount = Number(document.querySelector('#amount').value);
       let coin = document.querySelector('#coin').value.toUpperCase();
       let dist = document.querySelector('#dist').value.toUpperCase();
+      const exclude = document.querySelector('#exclude').value.replaceAll(/[^a-zA-Z0-9,]/g,'').split(',');
+
       const api = apiUrl + `coin/${coin}/balances`;
+
       result.value = 'Waiting...'
       const balances = await fetchBalances(api);
       if (!balances) return;
-      let divs = countDivs(balances, amount);
-      console.log(dist);
+      let divs = countDivs(balances, exclude, amount);
       dist = await fetch(`https://explorer-api.minter.network/api/v2/coins/symbol/${dist}`).then(res => res.json()).then(res => res.data.id).catch((error) => {
         result.value = 'Got error! Try to check token for distribution ticker';
         return false;
       });
       if (!dist) return;
-      console.log(dist)
       result.value = divs.map(item => `${item.address},${item.divs},${dist}`).join('\n');
       length.textContent = `Total: ${divs.length} shareholders`;
     })
@@ -66,11 +68,14 @@
         });
     }
 
-    const countDivs = (balances, amount) => {
+    const countDivs = (balances, exclude, amount) => {
+      balances = balances.filter( item => {
+        return !exclude.includes(item.address);
+      });
       let sum = balances.reduce((prev, current) => {
         prev += Number(current.amount / 1000000000000000000);
         return prev;
-      }, 0)
+      }, 0);
       return balances.map( item => {return {'address': item.address, 'divs': Number(item.amount / 1000000000000000000 / sum) * amount}})
     }
   </script>

@@ -1,1 +1,2 @@
-# divs.github.io
+# Dividend calculation for Minter network
+

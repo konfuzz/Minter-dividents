@@ -4,121 +4,46 @@
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
-  <style>
-    .container {
-      width: 960px;
-      margin: 0 auto;
-      padding-top: 50px;
-    }
-    textarea {
-      display: block;
-      margin-top: 20px;
-      width: 100%;
-    }
-    label {
-      display: inline-block;
-      margin-top:10px;
-    }
-  </style>
+  <title>Dividend calculation for Minter network</title>
+  <link rel="icon" type="image/x-icon" href="/icons/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
+  <link rel="manifest" href="icons/site.webmanifest">
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="container">
-    <input id="coin" type="text" placeholder="Enter token ticker">
-    <input id="dist" type="text" placeholder="Token to distribute">
-    <input id="amount" type="text" placeholder="Enter amount to distribute">
-    <button id="search">Do magic</button><br>
-    <label for="pools">Consider tokens in pools</label><input type="checkbox" name="pools" id="pools">
+    <h1>Dividend calculation for Minter network<span class="help">?</span></h1>
+    <div class="inputs">
+    <div class="inputbox">
+      <label for="coin">Enter token ticker</label>
+      <input id="coin" type="text" placeholder="Enter token ticker" autocomplete="off">
+      <div class="hintbox"></div>
+    </div>
+    <div class="inputbox">
+      <label for="dist">Token to distribute</label>
+      <input id="dist" type="text" placeholder="Token to distribute" autocomplete="off">
+      <div class="hintbox"></div>
+    </div>
+    <div class="inputbox">
+      <label for="amount">Enter amount to distribute</label>
+      <input id="amount" type="text" placeholder="Enter amount to distribute">
+    </div>    
+    </div>
+    <input type="checkbox" name="pools" id="pools"><label for="pools">Consider tokens in pools</label><br>
+    <label for="exclude">Wallets to exclude</label>
     <textarea name="exclude" id="exclude" cols="30" rows="5" placeholder="Wallets to exclude (divide by ',')"></textarea>
+    <button id="search">Do magic</button><br>
+    <label for="exclude">Multisend list</label>
     <textarea name="result" id="result" cols="30" rows="25"></textarea>
     <p class="length"></p>
   </div>
 
-  <script>
-    const apiUrl = 'https://api.chainik.io/v1/';
-    const search = document.querySelector('#search');
-    const result = document.querySelector('#result');
-    const length = document.querySelector('.length');    
-    
-    search.addEventListener('click', async () => {
-      const amount = Number(document.querySelector('#amount').value);
-      const coin = document.querySelector('#coin').value.toUpperCase();
-      const distribute = document.querySelector('#dist').value.toUpperCase();
-      const pools = document.querySelector('#pools').checked;
-      const exclude = document.querySelector('#exclude').value.replaceAll(/[^a-zA-Z0-9,]/g,'').split(',');
-
-      result.value = 'Waiting...'
-      const balances = await fetchBalances(coin);
-      if (!balances) return;
-      const coinInPools = (pools) ? await fetchPools(coin) : null ;
-      let divs = countDivs(balances, exclude, amount, coinInPools);
-      dist = (distribute === 'BIP') ? '0' : await fetchDist(distribute);
-      if (!dist) return;
-      result.value = divs.map(item => `${item.address},${item.divs},${dist}`).join('\n');
-      length.textContent = `Total: ${divs.length} shareholders`;
-    })
-
-    const fetchDist = async (dist) => {
-      return fetch(`https://explorer-api.minter.network/api/v2/coins/symbol/${dist}`)
-      .then(res => res.json())
-      .then(res => res.data.id)
-      .catch((error) => {
-        result.value = 'Got error! Try to check token for distribution ticker';
-        return false;
-      });
-    }
-    
-    const fetchBalances = (coin) => {
-      const api = apiUrl + `coin/${coin}/balances`;
-      return fetch(api)
-        .then(res => {
-          if (res.ok) return res.json();
-          throw new Error();
-        })
-        .then(res => res.data)
-        .catch((error) => {
-          result.value = 'Got error! Try to check token ticker';
-          return false;
-        });
-    }
-
-    const fetchPools = (coin) => {
-      const api = apiUrl + `coin/${coin}/pools`;
-      return fetch(api)
-        .then(res => {
-          if (res.ok) return res.json();
-          throw new Error();
-        })
-        .then(res => res.data)
-        .catch((error) => {
-          result.value = 'Got error! Try to check token ticker';
-          return false;
-        });
-    }
-
-    const countDivs = (balances, exclude, amount, coinInPools) => {
-
-      if (coinInPools) {
-        coinInPools.forEach(itemPools => {
-          let i = balances.findIndex(item => item.address === itemPools.address);
-          if (i >= 0) {
-            balances[i].amount = Number(balances[i].amount) + Number(itemPools.amount);
-          } else {
-            balances.push({amount: itemPools.amount, address: itemPools.address});
-          }
-        });
-      }
-
-      balances = balances.filter(item => {
-        return !exclude.includes(item.address);
-      });
-
-      let sum = balances.reduce((prev, current) => {
-        prev += Number(current.amount) / 1000000000000000000;
-        return prev;
-      }, 0);
-      return balances.map( item => {return {'address': item.address, 'divs': Number(item.amount / 1000000000000000000 / sum) * amount}})
-    }
-  </script>
+<script src="index.js"></script>
 </body>
 </html>
